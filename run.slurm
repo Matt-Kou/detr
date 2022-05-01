@@ -14,5 +14,5 @@ module purge
 cd /scratch/yk1962/dl-final/detr
 source /scratch/yk1962/miniconda3/bin/activate updetr
 mkdir models
-python -m torch.distributed.launch --nproc_per_node=4 main_detr.py --output_dir zoo/distributed
+python -m torch.distributed.launch --nproc_per_node=4 main.py --output_dir zoo/distributed
 

@@ -164,10 +164,7 @@ def main(args):
     valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.bs, shuffle=False, num_workers=2,
                                                collate_fn=utils.collate_fn)
 
-
-
     # if args.distributed:
-    #     print("shouldn't be in distributed mode!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     #     sampler_train = DistributedSampler(train_loader)
     #     sampler_val = DistributedSampler(train_loader, shuffle=False)
     # else:
