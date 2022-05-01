@@ -18,6 +18,7 @@ import util.misc as utils
 from dataset import LabeledDataset
 from engine import evaluate, train_one_epoch
 from models import build_model
+from resnet_backbone import ResnetBackbone
 
 
 def get_args_parser():
