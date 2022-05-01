@@ -14,7 +14,7 @@ import transforms as T
 
 # import datasets
 import util.misc as utils
-# from datasets import build_dataset, get_coco_api_from_dataset
+from datasets import build_dataset, get_coco_api_from_dataset
 from dataset import LabeledDataset
 from engine import evaluate, train_one_epoch
 from models import build_model
@@ -23,8 +23,10 @@ from resnet_backbone import ResnetBackbone
 
 def get_args_parser():
     parser = argparse.ArgumentParser('Set transformer detector', add_help=False)
-    parser.add_argument('--dataset', type=str, default='/scratch/yk1962/datasets/labeled_data', help='the path of the labeled dataset')
-    parser.add_argument('--backbone_path', type=str, default='zoo/backbone/resnet-full-nofc', help='the path of the backbone')
+    parser.add_argument('--dataset', type=str, default='/scratch/yk1962/datasets/labeled_data',
+                        help='the path of the labeled dataset')
+    parser.add_argument('--backbone_path', type=str, default='zoo/backbone/resnet-full-nofc',
+                        help='the path of the backbone')
     parser.add_argument('--lr', default=1e-4, type=float)
     parser.add_argument('--lr_backbone', default=1e-5, type=float)
     parser.add_argument('--bs', default=2, type=int)
@@ -107,6 +109,7 @@ def get_args_parser():
     parser.add_argument('--dist_url', default='env://', help='url used to set up distributed training')
     return parser
 
+
 def get_transform(train):
     transforms = []
     transforms.append(T.ToTensor())
@@ -164,9 +167,17 @@ def main(args):
     valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.bs, shuffle=False, num_workers=2,
                                                collate_fn=utils.collate_fn)
 
-    # if args.distributed:
-    #     sampler_train = DistributedSampler(train_loader)
-    #     sampler_val = DistributedSampler(train_loader, shuffle=False)
+    if args.distributed:
+        sampler_train = DistributedSampler(train_dataset)
+        sampler_val = DistributedSampler(valid_dataset, shuffle=False)
+        batch_sampler_train = torch.utils.data.BatchSampler(
+            sampler_train, args.batch_size, drop_last=True)
+
+        data_loader_train = DataLoader(train_dataset, batch_sampler=batch_sampler_train,
+                                       collate_fn=utils.collate_fn, num_workers=args.num_workers)
+        data_loader_val = DataLoader(valid_dataset, args.batch_size, sampler=sampler_val,
+                                     drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers)
+        base_ds = get_coco_api_from_dataset(valid_dataset)
     # else:
     #     sampler_train = torch.utils.data.RandomSampler(dataset_train)
     #     sampler_val = torch.utils.data.SequentialSampler(dataset_val)
@@ -174,10 +185,6 @@ def main(args):
     # batch_sampler_train = torch.utils.data.BatchSampler(
     #     sampler_train, args.batch_size, drop_last=True)
     #
-    # data_loader_train = DataLoader(dataset_train, batch_sampler=batch_sampler_train,
-    #                                collate_fn=utils.collate_fn, num_workers=args.num_workers)
-    # data_loader_val = DataLoader(dataset_val, args.batch_size, sampler=sampler_val,
-    #                              drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers)
 
     # if args.dataset_file == "coco_panoptic":
     #     # We also evaluate AP during panoptic training, on original coco DS
