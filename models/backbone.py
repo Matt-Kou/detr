@@ -89,7 +89,9 @@ class Backbone(BackboneBase):
         backbone = getattr(torchvision.models, name)(
             replace_stride_with_dilation=[False, False, dilation],
             pretrained=is_main_process(), norm_layer=FrozenBatchNorm2d)
-        backbone.load_state_dict(torch.load("zoo/backbone/resnet.pth"))
+        print("loading pretrained model..............................")
+        print(backbone.load_state_dict(torch.load("zoo/backbone/resnet.pth"), strict=False))
+        print("......................................................")
         num_channels = 512 if name in ('resnet18', 'resnet34') else 2048
         super().__init__(backbone, train_backbone, num_channels, return_interm_layers)
 
