@@ -269,7 +269,7 @@ def get_sha():
 def collate_fn(batch):
     batch = list(zip(*batch))
     batch[0] = nested_tensor_from_tensor_list(batch[0])
-    return list(batch)
+    return tuple(batch)
 
 
 def _max_by_axis(the_list):
