@@ -213,7 +213,7 @@ def main(args):
         # if args.distributed:
         #     sampler_train.set_epoch(epoch)
         train_stats = train_one_epoch(
-            model, train_loader, optimizer, device, epoch,
+            model, criterion, train_loader, optimizer, device, epoch,
             args.clip_max_norm)
         # train_one_epoch(model, optimizer, train_loader, device, epoch, print_freq=10)
         lr_scheduler.step()

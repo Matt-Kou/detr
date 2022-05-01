@@ -317,8 +317,8 @@ def build(args):
         num_classes = 250
     device = torch.device(args.device)
 
-    backbone = build_backbone(args)
-
+    # backbone = build_backbone(args)
+    backbone = torch.load(args.backbone_path)
     transformer = build_transformer(args)
 
     model = DETR(

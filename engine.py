@@ -14,7 +14,7 @@ from datasets.coco_eval import CocoEvaluator
 from datasets.panoptic_eval import PanopticEvaluator
 
 
-def train_one_epoch(model: torch.nn.Module,
+def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
                     device: torch.device, epoch: int, max_norm: float = 0):
     model.train()
@@ -30,9 +30,9 @@ def train_one_epoch(model: torch.nn.Module,
         samples = list(image.to(device) for image in samples)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-        # outputs = model(samples)
-        loss_dict = model(samples, targets)
-        weight_dict = model.weight_dict
+        outputs = model(samples)
+        loss_dict = criterion(samples, targets)
+        weight_dict = criterion.weight_dict
         losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
 
         # reduce losses over all GPUs for logging purposes
