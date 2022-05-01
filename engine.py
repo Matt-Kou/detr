@@ -27,7 +27,7 @@ def train_one_epoch(model: torch.nn.Module,
     for samples, targets in metric_logger.log_every(data_loader, print_freq, header):
         print("samples", samples)
         print("targets", targets)
-        samples = samples.to(device)
+        samples = list(image.to(device) for image in samples)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
         # outputs = model(samples)
