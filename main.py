@@ -12,7 +12,7 @@ import torch
 from torch.utils.data import DataLoader, DistributedSampler
 import transforms as T
 
-import datasets
+# import datasets
 import util.misc as utils
 # from datasets import build_dataset, get_coco_api_from_dataset
 from dataset import LabeledDataset
@@ -22,6 +22,7 @@ from models import build_model
 
 def get_args_parser():
     parser = argparse.ArgumentParser('Set transformer detector', add_help=False)
+    parser.add_argument('--dataset', type=str, default='/labeled', help='the path of the labeled dataset')
     parser.add_argument('--lr', default=1e-4, type=float)
     parser.add_argument('--lr_backbone', default=1e-5, type=float)
     parser.add_argument('--batch_size', default=2, type=int)
