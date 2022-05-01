@@ -215,7 +215,7 @@ def main(args):
         train_stats = train_one_epoch(
             model, train_loader, optimizer, device, epoch,
             args.clip_max_norm)
-        train_one_epoch(model, optimizer, train_loader, device, epoch, print_freq=10)
+        # train_one_epoch(model, optimizer, train_loader, device, epoch, print_freq=10)
         lr_scheduler.step()
         evaluate(model, valid_loader, device=device)
         torch.save(model, os.path.join("zoo", f"{args.backbone_type}-{args.backbone_subtitle}-{args.output_subname}"
