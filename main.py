@@ -120,6 +120,7 @@ def get_transform(train):
 
 
 def main(args):
+    args.distributed = False
     utils.init_distributed_mode(args)
     print("git:\n  {}\n".format(utils.get_sha()))
 
