@@ -16,6 +16,7 @@ from .matcher import build_matcher
 from .segmentation import (DETRsegm, PostProcessPanoptic, PostProcessSegm,
                            dice_loss, sigmoid_focal_loss)
 from .transformer import build_transformer
+from resnet_backbone import ResnetBackbone
 
 
 class DETR(nn.Module):
