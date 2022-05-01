@@ -18,6 +18,7 @@ class ResnetBackbone(resnet.ResNet):
     ) -> None:
         resnet.ResNet.__init__(self, block, layers, num_classes, zero_init_residual, groups, width_per_group,
                                replace_stride_with_dilation, norm_layer)
+        self.num_channels = 2048
 
     def _forward_impl(self, x: Tensor) -> Tensor:
         # See note [TorchScript super()]

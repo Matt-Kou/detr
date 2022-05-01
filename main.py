@@ -23,7 +23,7 @@ from models import build_model
 def get_args_parser():
     parser = argparse.ArgumentParser('Set transformer detector', add_help=False)
     parser.add_argument('--dataset', type=str, default='/labeled', help='the path of the labeled dataset')
-    parser.add_argument('--backbone_path', type=str, default='zoo/backbone/resnet-full', help='the path of the backbone')
+    parser.add_argument('--backbone_path', type=str, default='zoo/backbone/resnet-full-nofc', help='the path of the backbone')
     parser.add_argument('--lr', default=1e-4, type=float)
     parser.add_argument('--lr_backbone', default=1e-5, type=float)
     parser.add_argument('--bs', default=2, type=int)
