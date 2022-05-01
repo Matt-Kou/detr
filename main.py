@@ -167,17 +167,17 @@ def main(args):
     valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.bs, shuffle=False, num_workers=2,
                                                collate_fn=utils.collate_fn)
 
-    if args.distributed:
-        sampler_train = DistributedSampler(train_dataset)
-        sampler_val = DistributedSampler(valid_dataset, shuffle=False)
-        batch_sampler_train = torch.utils.data.BatchSampler(
-            sampler_train, args.batch_size, drop_last=True)
-
-        data_loader_train = DataLoader(train_dataset, batch_sampler=batch_sampler_train,
-                                       collate_fn=utils.collate_fn, num_workers=args.num_workers)
-        data_loader_val = DataLoader(valid_dataset, args.batch_size, sampler=sampler_val,
-                                     drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers)
-        base_ds = get_coco_api_from_dataset(valid_dataset)
+    # if args.distributed:
+    #     sampler_train = DistributedSampler(train_dataset)
+    #     sampler_val = DistributedSampler(valid_dataset, shuffle=False)
+    #     batch_sampler_train = torch.utils.data.BatchSampler(
+    #         sampler_train, args.batch_size, drop_last=True)
+    #
+    #     data_loader_train = DataLoader(train_dataset, batch_sampler=batch_sampler_train,
+    #                                    collate_fn=utils.collate_fn, num_workers=args.num_workers)
+    #     data_loader_val = DataLoader(valid_dataset, args.batch_size, sampler=sampler_val,
+    #                                  drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers)
+    #     base_ds = get_coco_api_from_dataset(valid_dataset)
     # else:
     #     sampler_train = torch.utils.data.RandomSampler(dataset_train)
     #     sampler_val = torch.utils.data.SequentialSampler(dataset_val)
