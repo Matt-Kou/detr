@@ -1,0 +1,15 @@
+| distributed init (rank 0): env://
+Traceback (most recent call last):
+  File "/scratch/yk1962/dl-final/detr/main.py", line 277, in <module>
+    main(args)
+  File "/scratch/yk1962/dl-final/detr/main.py", line 123, in main
+    utils.init_distributed_mode(args)
+  File "/scratch/yk1962/dl-final/detr/util/misc.py", line 427, in init_distributed_mode
+    torch.distributed.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
+  File "/scratch/yk1962/miniconda3/envs/updetr/lib/python3.9/site-packages/torch/distributed/distributed_c10d.py", line 595, in init_process_group
+    store, rank, world_size = next(rendezvous_iterator)
+  File "/scratch/yk1962/miniconda3/envs/updetr/lib/python3.9/site-packages/torch/distributed/rendezvous.py", line 229, in _env_rendezvous_handler
+    master_addr = _get_env_or_raise("MASTER_ADDR")
+  File "/scratch/yk1962/miniconda3/envs/updetr/lib/python3.9/site-packages/torch/distributed/rendezvous.py", line 206, in _get_env_or_raise
+    raise _env_error(env_var)
+ValueError: Error initializing torch.distributed using env:// rendezvous: environment variable MASTER_ADDR expected, but not set
