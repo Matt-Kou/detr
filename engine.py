@@ -48,6 +48,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
             if str(e).startswith('CUDA out of memory.'):
                 optimizer.zero_grad()
                 print("'CUDA out of memory.'")
+                print(type(samples))
                 optimizer.zero_grad()
                 continue
             else:
