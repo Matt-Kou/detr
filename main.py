@@ -29,7 +29,7 @@ def get_args_parser():
                         help='the path of the backbone')
     parser.add_argument('--lr', default=1e-4, type=float)
     parser.add_argument('--lr_backbone', default=1e-5, type=float)
-    parser.add_argument('--bs', default=2, type=int)
+    parser.add_argument('--batch_size', default=2, type=int)
     parser.add_argument('--weight_decay', default=1e-4, type=float)
     parser.add_argument('--epochs', default=300, type=int)
     parser.add_argument('--lr_drop', default=200, type=int)
@@ -161,11 +161,11 @@ def main(args):
     # dataset_val = build_dataset(image_set='val', args=args)
 
     train_dataset = LabeledDataset(root=args.dataset, split="training", transforms=get_transform(train=True))
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.bs, shuffle=True, num_workers=2,
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=2,
                                                collate_fn=utils.collate_fn)
 
     valid_dataset = LabeledDataset(root=args.dataset, split="validation", transforms=get_transform(train=False))
-    valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.bs, shuffle=False, num_workers=2,
+    valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.batch_size, shuffle=False, num_workers=2,
                                                collate_fn=utils.collate_fn)
 
     # if args.distributed:
