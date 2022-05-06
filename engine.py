@@ -6,11 +6,15 @@ import math
 import os
 import sys
 from typing import Iterable
-
+import time
 import torch
+import torchvision
+from pycocotools import mask as coco_mask
+from pycocotools.coco import COCO
 
 import util.misc as utils
 from datasets.coco_eval import CocoEvaluator
+# from datasets.coco_utils import get_coco_api_from_dataset
 from datasets.panoptic_eval import PanopticEvaluator
 
 
@@ -49,6 +53,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                 optimizer.zero_grad()
                 print("'CUDA out of memory.'")
                 print(type(samples))
+                print(samples.tensors.shape)
                 optimizer.zero_grad()
                 continue
             else:
@@ -120,88 +125,203 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
 
 
-@torch.no_grad()
-def evaluate(model, criterion, postprocessors, data_loader, base_ds, device, output_dir):
-    model.eval()
-    criterion.eval()
+# @torch.no_grad()
+# def evaluate(model, criterion, postprocessors, data_loader, base_ds, device, output_dir):
+#     model.eval()
+#     criterion.eval()
+#
+#     metric_logger = utils.MetricLogger(delimiter="  ")
+#     metric_logger.add_meter('class_error', utils.SmoothedValue(window_size=1, fmt='{value:.2f}'))
+#     header = 'Test:'
+#
+#     iou_types = tuple(k for k in ('segm', 'bbox') if k in postprocessors.keys())
+#     coco_evaluator = CocoEvaluator(base_ds, iou_types)
+#     # coco_evaluator.coco_eval[iou_types[0]].params.iouThrs = [0, 0.1, 0.5, 0.75]
+#
+#     panoptic_evaluator = None
+#     if 'panoptic' in postprocessors.keys():
+#         panoptic_evaluator = PanopticEvaluator(
+#             data_loader.dataset.ann_file,
+#             data_loader.dataset.ann_folder,
+#             output_dir=os.path.join(output_dir, "panoptic_eval"),
+#         )
+#
+#     for samples, targets in metric_logger.log_every(data_loader, 10, header):
+#         samples = samples.to(device)
+#         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+#
+#         outputs = model(samples)
+#         loss_dict = criterion(outputs, targets)
+#         weight_dict = criterion.weight_dict
+#
+#         # reduce losses over all GPUs for logging purposes
+#         loss_dict_reduced = utils.reduce_dict(loss_dict)
+#         loss_dict_reduced_scaled = {k: v * weight_dict[k]
+#                                     for k, v in loss_dict_reduced.items() if k in weight_dict}
+#         loss_dict_reduced_unscaled = {f'{k}_unscaled': v
+#                                       for k, v in loss_dict_reduced.items()}
+#         metric_logger.update(loss=sum(loss_dict_reduced_scaled.values()),
+#                              **loss_dict_reduced_scaled,
+#                              **loss_dict_reduced_unscaled)
+#         metric_logger.update(class_error=loss_dict_reduced['class_error'])
+#
+#         orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)
+#         results = postprocessors['bbox'](outputs, orig_target_sizes)
+#         if 'segm' in postprocessors.keys():
+#             target_sizes = torch.stack([t["size"] for t in targets], dim=0)
+#             results = postprocessors['segm'](results, outputs, orig_target_sizes, target_sizes)
+#         res = {target['image_id'].item(): output for target, output in zip(targets, results)}
+#         if coco_evaluator is not None:
+#             coco_evaluator.update(res)
+#
+#         if panoptic_evaluator is not None:
+#             res_pano = postprocessors["panoptic"](outputs, target_sizes, orig_target_sizes)
+#             for i, target in enumerate(targets):
+#                 image_id = target["image_id"].item()
+#                 file_name = f"{image_id:012d}.png"
+#                 res_pano[i]["image_id"] = image_id
+#                 res_pano[i]["file_name"] = file_name
+#
+#             panoptic_evaluator.update(res_pano)
+#
+#     # gather the stats from all processes
+#     metric_logger.synchronize_between_processes()
+#     print("Averaged stats:", metric_logger)
+#     if coco_evaluator is not None:
+#         coco_evaluator.synchronize_between_processes()
+#     if panoptic_evaluator is not None:
+#         panoptic_evaluator.synchronize_between_processes()
+#
+#     # accumulate predictions from all images
+#     if coco_evaluator is not None:
+#         coco_evaluator.accumulate()
+#         coco_evaluator.summarize()
+#     panoptic_res = None
+#     if panoptic_evaluator is not None:
+#         panoptic_res = panoptic_evaluator.summarize()
+#     stats = {k: meter.global_avg for k, meter in metric_logger.meters.items()}
+#     if coco_evaluator is not None:
+#         if 'bbox' in postprocessors.keys():
+#             stats['coco_eval_bbox'] = coco_evaluator.coco_eval['bbox'].stats.tolist()
+#         if 'segm' in postprocessors.keys():
+#             stats['coco_eval_masks'] = coco_evaluator.coco_eval['segm'].stats.tolist()
+#     if panoptic_res is not None:
+#         stats['PQ_all'] = panoptic_res["All"]
+#         stats['PQ_th'] = panoptic_res["Things"]
+#         stats['PQ_st'] = panoptic_res["Stuff"]
+#     return stats, coco_evaluator
 
+# changed to jiachen's evaluate
+@torch.no_grad()
+def evaluate(model, data_loader, device):
+    n_threads = torch.get_num_threads()
+    # FIXME remove this and make paste_masks_in_image run on the GPU
+    torch.set_num_threads(1)
+    cpu_device = torch.device("cpu")
+    model.eval()
     metric_logger = utils.MetricLogger(delimiter="  ")
-    metric_logger.add_meter('class_error', utils.SmoothedValue(window_size=1, fmt='{value:.2f}'))
     header = 'Test:'
 
-    iou_types = tuple(k for k in ('segm', 'bbox') if k in postprocessors.keys())
-    coco_evaluator = CocoEvaluator(base_ds, iou_types)
-    # coco_evaluator.coco_eval[iou_types[0]].params.iouThrs = [0, 0.1, 0.5, 0.75]
+    coco = get_coco_api_from_dataset(data_loader.dataset)
+    iou_types = _get_iou_types(model)
+    coco_evaluator = CocoEvaluator(coco, iou_types)
 
-    panoptic_evaluator = None
-    if 'panoptic' in postprocessors.keys():
-        panoptic_evaluator = PanopticEvaluator(
-            data_loader.dataset.ann_file,
-            data_loader.dataset.ann_folder,
-            output_dir=os.path.join(output_dir, "panoptic_eval"),
-        )
+    for images, targets in metric_logger.log_every(data_loader, 100, header):
+        images = list(img.to(device) for img in images)
 
-    for samples, targets in metric_logger.log_every(data_loader, 10, header):
-        samples = samples.to(device)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+        torch.cuda.synchronize()
+        model_time = time.time()
+        outputs = model(images)
 
-        outputs = model(samples)
-        loss_dict = criterion(outputs, targets)
-        weight_dict = criterion.weight_dict
+        outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs]
+        model_time = time.time() - model_time
 
-        # reduce losses over all GPUs for logging purposes
-        loss_dict_reduced = utils.reduce_dict(loss_dict)
-        loss_dict_reduced_scaled = {k: v * weight_dict[k]
-                                    for k, v in loss_dict_reduced.items() if k in weight_dict}
-        loss_dict_reduced_unscaled = {f'{k}_unscaled': v
-                                      for k, v in loss_dict_reduced.items()}
-        metric_logger.update(loss=sum(loss_dict_reduced_scaled.values()),
-                             **loss_dict_reduced_scaled,
-                             **loss_dict_reduced_unscaled)
-        metric_logger.update(class_error=loss_dict_reduced['class_error'])
-
-        orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)
-        results = postprocessors['bbox'](outputs, orig_target_sizes)
-        if 'segm' in postprocessors.keys():
-            target_sizes = torch.stack([t["size"] for t in targets], dim=0)
-            results = postprocessors['segm'](results, outputs, orig_target_sizes, target_sizes)
-        res = {target['image_id'].item(): output for target, output in zip(targets, results)}
-        if coco_evaluator is not None:
-            coco_evaluator.update(res)
-
-        if panoptic_evaluator is not None:
-            res_pano = postprocessors["panoptic"](outputs, target_sizes, orig_target_sizes)
-            for i, target in enumerate(targets):
-                image_id = target["image_id"].item()
-                file_name = f"{image_id:012d}.png"
-                res_pano[i]["image_id"] = image_id
-                res_pano[i]["file_name"] = file_name
-
-            panoptic_evaluator.update(res_pano)
+        res = {target["image_id"].item(): output for target, output in zip(targets, outputs)}
+        evaluator_time = time.time()
+        coco_evaluator.update(res)
+        evaluator_time = time.time() - evaluator_time
+        metric_logger.update(model_time=model_time, evaluator_time=evaluator_time)
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
     print("Averaged stats:", metric_logger)
-    if coco_evaluator is not None:
-        coco_evaluator.synchronize_between_processes()
-    if panoptic_evaluator is not None:
-        panoptic_evaluator.synchronize_between_processes()
+    coco_evaluator.synchronize_between_processes()
 
     # accumulate predictions from all images
-    if coco_evaluator is not None:
-        coco_evaluator.accumulate()
-        coco_evaluator.summarize()
-    panoptic_res = None
-    if panoptic_evaluator is not None:
-        panoptic_res = panoptic_evaluator.summarize()
-    stats = {k: meter.global_avg for k, meter in metric_logger.meters.items()}
-    if coco_evaluator is not None:
-        if 'bbox' in postprocessors.keys():
-            stats['coco_eval_bbox'] = coco_evaluator.coco_eval['bbox'].stats.tolist()
-        if 'segm' in postprocessors.keys():
-            stats['coco_eval_masks'] = coco_evaluator.coco_eval['segm'].stats.tolist()
-    if panoptic_res is not None:
-        stats['PQ_all'] = panoptic_res["All"]
-        stats['PQ_th'] = panoptic_res["Things"]
-        stats['PQ_st'] = panoptic_res["Stuff"]
-    return stats, coco_evaluator
+    coco_evaluator.accumulate()
+    coco_evaluator.summarize()
+    torch.set_num_threads(n_threads)
+    return coco_evaluator
+
+
+def get_coco_api_from_dataset(dataset):
+    for _ in range(10):
+        if isinstance(dataset, torchvision.datasets.CocoDetection):
+            break
+        if isinstance(dataset, torch.utils.data.Subset):
+            dataset = dataset.dataset
+    if isinstance(dataset, torchvision.datasets.CocoDetection):
+        return dataset.coco
+    return convert_to_coco_api(dataset)
+
+def convert_to_coco_api(ds):
+    coco_ds = COCO()
+    # annotation IDs need to start at 1, not 0, see torchvision issue #1530
+    ann_id = 1
+    dataset = {'images': [], 'categories': [], 'annotations': []}
+    categories = set()
+    for img_idx in range(len(ds)):
+        # find better way to get target
+        # targets = ds.get_annotations(img_idx)
+        img, targets = ds[img_idx]
+        image_id = targets["image_id"].item()
+        img_dict = {}
+        img_dict['id'] = image_id
+        img_dict['height'] = img.shape[-2]
+        img_dict['width'] = img.shape[-1]
+        dataset['images'].append(img_dict)
+        bboxes = targets["boxes"]
+        bboxes[:, 2:] -= bboxes[:, :2]
+        bboxes = bboxes.tolist()
+        labels = targets['labels'].tolist()
+        areas = targets['area'].tolist()
+        iscrowd = targets['iscrowd'].tolist()
+        if 'masks' in targets:
+            masks = targets['masks']
+            # make masks Fortran contiguous for coco_mask
+            masks = masks.permute(0, 2, 1).contiguous().permute(0, 2, 1)
+        if 'keypoints' in targets:
+            keypoints = targets['keypoints']
+            keypoints = keypoints.reshape(keypoints.shape[0], -1).tolist()
+        num_objs = len(bboxes)
+        for i in range(num_objs):
+            ann = {}
+            ann['image_id'] = image_id
+            ann['bbox'] = bboxes[i]
+            ann['category_id'] = labels[i]
+            categories.add(labels[i])
+            ann['area'] = areas[i]
+            ann['iscrowd'] = iscrowd[i]
+            ann['id'] = ann_id
+            if 'masks' in targets:
+                ann["segmentation"] = coco_mask.encode(masks[i].numpy())
+            if 'keypoints' in targets:
+                ann['keypoints'] = keypoints[i]
+                ann['num_keypoints'] = sum(k != 0 for k in keypoints[i][2::3])
+            dataset['annotations'].append(ann)
+            ann_id += 1
+    dataset['categories'] = [{'id': i} for i in sorted(categories)]
+    coco_ds.dataset = dataset
+    coco_ds.createIndex()
+    return coco_ds
+
+def _get_iou_types(model):
+    model_without_ddp = model
+    if isinstance(model, torch.nn.parallel.DistributedDataParallel):
+        model_without_ddp = model.module
+    iou_types = ["bbox"]
+    if isinstance(model_without_ddp, torchvision.models.detection.MaskRCNN):
+        iou_types.append("segm")
+    if isinstance(model_without_ddp, torchvision.models.detection.KeypointRCNN):
+        iou_types.append("keypoints")
+    return iou_types
