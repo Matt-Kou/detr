@@ -91,7 +91,9 @@ class Backbone(BackboneBase):
         #     pretrained=is_main_process(), norm_layer=FrozenBatchNorm2d)
         backbone = getattr(torchvision.models, name)(
             replace_stride_with_dilation=[False, False, dilation],
-            pretrained=True, norm_layer=FrozenBatchNorm2d, trainable_backbone_layers=0)
+            pretrained=True, norm_layer=FrozenBatchNorm2d)
+        for param in backbone.parameters():
+            param.requires_grad = False
         # print("loading pretrained model..............................")
         # print(backbone.load_state_dict(torch.load("zoo/backbone/resnet.pth"), strict=False))
         # print("......................................................")
